@@ -1,0 +1,15 @@
+{
+    "domain": "delios",
+    "name": "Delios",
+    "after_dependencies": [],
+    "codeowners": [
+        "@lnx85"
+    ],
+    "config_flow": true,
+    "dependencies": ["http"],
+    "documentation": "https://github.com/lnx85/delios",
+    "iot_class": "local_polling",
+    "issue_tracker": "https://github.com/lnx85/delios/issues",
+    "requirements": [],
+    "version": "0.1"
+}

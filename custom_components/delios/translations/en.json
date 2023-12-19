@@ -1,0 +1,52 @@
+{
+  "title": "Delios",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Inverter connection configuration",
+        "description": "Configure the connection to the inverter.",
+        "data": {
+          "name": "Assign name to the inverter (used as sensors' prefix)",
+          "model": "Model",
+          "host": "IP address",
+          "username": "Username",
+          "password": "Password",
+          "scan_interval": "Polling period (seconds)"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "Device is already configured",
+      "name_too_short": "Inverter name is too short (min. 3 chars)",
+      "invalid_device": "Invalid device; check the IP address",
+      "invalid_username": "Invalid username and/or password",
+      "invalid_password": "Invalid username and/or password",
+      "invalid_scan_interval": "Scan interval must be a positive integer"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "user": {
+        "title": "Inverter connection configuration",
+        "description": "Configure the connection to the inverter.",
+        "data": {
+          "host": "IP address",
+          "username": "Username",
+          "password": "Password",
+          "scan_interval": "Polling period (seconds)"
+        }
+      }
+    },
+    "error": {
+      "invalid_device": "Invalid device; check the IP address",
+      "invalid_username": "Invalid username and/or password",
+      "invalid_password": "Invalid username and/or password",
+      "invalid_scan_interval": "Scan interval must be a positive integer"
+    },
+    "abort": {
+    }
+  }
+}

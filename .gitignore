@@ -1,0 +1,17 @@
+/.idea/
+/.vscode/
+/.env/
+__pycache__/
+.pytest_cache/
+/config/
+*.zip
+/.coverage
+/coverage.xml
+*~
+\#*\#
+.\#*
+*.orig
+*.rej
+.history
+.DS_Store
+Thumbs.db

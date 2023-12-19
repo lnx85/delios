@@ -1,0 +1,6 @@
+black
+isort
+pytest-homeassistant-custom-component~=0.13.54
+pytest
+pytest-asyncio
+pytest-cov

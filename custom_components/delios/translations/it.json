@@ -1,0 +1,52 @@
+{
+  "title": "Delios",
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configurazione connessione Inverter",
+        "description": "Inserisci i dati per poter configurare la connessione all'inverter.",
+        "data": {
+          "name": "Assegna un nome all'inverter (utilizzato come prefisso per i sensori)",
+          "model": "Modello",
+          "host": "Indirizzo IP",
+          "username": "Username",
+          "password": "Password",
+          "scan_interval": "Periodo di aggiornamento (secondi)"
+        }
+      }
+    },
+    "error": {
+      "already_configured": "Dispositivo già configurato",
+      "name_too_short": "Nome inverter troppo corto (min. 3 caratteri)",
+      "invalid_device": "Dispositivo non valido; controlla l'indirizzo IP",
+      "invalid_username": "Username e/o password non validi",
+      "invalid_password": "Username e/o password non validi",
+      "invalid_scan_interval": "Il periodo di aggiornamento deve essere un numero intero positivo"
+    },
+    "abort": {
+      "already_configured": "Dispositivo già configurato"
+    }
+  },
+  "options": {
+    "step": {
+      "user": {
+        "title": "Configurazione connessione Inverter",
+        "description": "Inserisci i dati per poter configurare la connessione all'inverter.",
+        "data": {
+          "host": "Indirizzo IP",
+          "username": "Username",
+          "password": "Password",
+          "scan_interval": "Periodo di aggiornamento (secondi)"
+        }
+      }
+    },
+    "error": {
+      "invalid_device": "Dispositivo non valido; controlla l'indirizzo IP",
+      "invalid_username": "Username e/o password non validi",
+      "invalid_password": "Username e/o password non validi",
+      "invalid_scan_interval": "Il periodo di aggiornamento deve essere un numero intero positivo"
+    },
+    "abort": {
+    }
+  }
+}
