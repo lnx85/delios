@@ -42,7 +42,6 @@ class DeliosBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
         super().__init__(coordinator, context=attribute)
         self._attribute = attribute
-        self._internal_value = None
         inverter = self.coordinator.inverter
         self.entity_id = ENTITY_ID_BINARY_SENSOR_FORMAT.format(
             slugify(inverter.name), attribute.key
@@ -60,20 +59,14 @@ class DeliosBinarySensor(CoordinatorEntity, BinarySensorEntity):
             model=inverter.model,
         )
         if self.coordinator.data:
-            self._internal_value = self._attribute.value(self.coordinator.data)
-
-    @property
-    def _attr_is_on(self) -> bool:
-        """Return value of sensor."""
-
-        return self._internal_value
+            self._attr_is_on = self._attribute.value(self.coordinator.data)
 
     @callback
     def _handle_coordinator_update(self) -> None:
         """Handle updated data from the coordinator."""
 
         try:
-            self._internal_value = self._attribute.value(self.coordinator.data)
+            self._attr_is_on = self._attribute.value(self.coordinator.data)
             self.async_write_ha_state()
         except KeyError:
             pass
