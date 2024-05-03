@@ -1,4 +1,5 @@
 """Tests for the sensor entity."""
+
 from unittest.mock import Mock
 
 import pytest

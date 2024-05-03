@@ -1,6 +1,5 @@
 """Initialize tests."""
 
-
 from custom_components.delios.client import DeliosClient
 
 

@@ -1,4 +1,4 @@
-black
+black==22.1.0
 isort
 pytest-homeassistant-custom-component~=0.13.54
 pytest
