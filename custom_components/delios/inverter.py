@@ -23,12 +23,12 @@ _LOGGER = logging.getLogger(__name__)
 class DeliosInverter:
     """Delios inverter manager."""
 
-    name: str = None
-    model: str = None
-    host: str = None
-    username: str = None
-    password: str = None
-    scan_interval: int = None
+    name: str = ""
+    model: str = ""
+    host: str = ""
+    username: str = ""
+    password: str = ""
+    scan_interval: int = 10
     helper_entities: bool = False
 
     @property

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, Optional
 
 import aiohttp
 from attr import dataclass
@@ -70,7 +70,7 @@ class DeliosClient:
             return False
         return False
 
-    async def sensors(self) -> dict | None:
+    async def sensors(self) -> SensorsData | None:
         """Request sensors data to Delios Web Server."""
         data = await self.__request("dashboard")
         if data is not None:
@@ -120,10 +120,10 @@ class DeliosClient:
 class AccessToken:
     """Access token representation for Delios Web Server."""
 
-    api_key: str = None
-    expire: int = None
-    level: int = None
-    username: str = None
+    api_key: str = ""
+    expire: Optional[int] = None
+    level: Optional[int] = None
+    username: Optional[str] = None
 
 
 class SensorsData:

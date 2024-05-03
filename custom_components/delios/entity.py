@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 
 from attr import dataclass
 from homeassistant.components.binary_sensor import BinarySensorDeviceClass
@@ -36,12 +36,12 @@ class DeliosInverterAttribute:
     """Delios inverter attribute."""
 
     type: DeliosEntityType = DeliosEntityType.SENSOR
-    inverter: DeliosInverter = None
-    key: str = None
-    name: str = None
-    state_class: str = None
-    device_class: str = None
-    unit_of_measurement: str = None
+    inverter: Optional[DeliosInverter] = None
+    key: Optional[str] = None
+    name: Optional[str] = None
+    state_class: Optional[str] = None
+    device_class: Optional[str] = None
+    unit_of_measurement: Optional[str] = None
     value: Callable[[Any], Any] = lambda v: v
 
 
@@ -56,10 +56,10 @@ class HelperFilterRangeType(Enum):
 class HelperFilterEntity:
     """Helper entity."""
 
-    name: str = None
-    entity_id: str = None
-    range: HelperFilterRangeType = None
-    type: DeliosEntityType = None
+    name: Optional[str] = None
+    entity_id: Optional[str] = None
+    range: Optional[HelperFilterRangeType] = None
+    type: Optional[DeliosEntityType] = None
 
 
 SENSORS: list[DeliosInverterAttribute] = [
