@@ -42,7 +42,7 @@ class DeliosInverterAttribute:
     state_class: Optional[str] = None
     device_class: Optional[str] = None
     unit_of_measurement: Optional[str] = None
-    suggested_display_precision: Optional[int] = 2
+    suggested_display_precision: Optional[int] = None
     value: Callable[[Any], Any] = lambda v: v
 
 
