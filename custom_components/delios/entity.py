@@ -332,7 +332,7 @@ SETTINGS: list[DeliosEntityType] = [
     ),
     DeliosInverterAttribute(
         type=DeliosEntityType.SENSOR,
-        key="grid_energy_total",
+        key="buyed_energy_total",
         name="Buyed Energy Total",
         state_class=SensorStateClass.TOTAL_INCREASING,
         device_class=SensorDeviceClass.ENERGY,
