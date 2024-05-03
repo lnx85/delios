@@ -42,6 +42,7 @@ class DeliosInverterAttribute:
     state_class: Optional[str] = None
     device_class: Optional[str] = None
     unit_of_measurement: Optional[str] = None
+    suggested_display_precision: Optional[int] = 2
     value: Callable[[Any], Any] = lambda v: v
 
 
@@ -328,6 +329,7 @@ SETTINGS: list[DeliosEntityType] = [
         state_class=SensorStateClass.TOTAL_INCREASING,
         device_class=SensorDeviceClass.ENERGY,
         unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        suggested_display_precision=2,
         value=lambda data: data["totalizer"].photovoltaic,
     ),
     DeliosInverterAttribute(
@@ -337,6 +339,7 @@ SETTINGS: list[DeliosEntityType] = [
         state_class=SensorStateClass.TOTAL_INCREASING,
         device_class=SensorDeviceClass.ENERGY,
         unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        suggested_display_precision=2,
         value=lambda data: data["totalizer"].buyed,
     ),
     DeliosInverterAttribute(
@@ -346,6 +349,7 @@ SETTINGS: list[DeliosEntityType] = [
         state_class=SensorStateClass.TOTAL_INCREASING,
         device_class=SensorDeviceClass.ENERGY,
         unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        suggested_display_precision=2,
         value=lambda data: data["totalizer"].injected,
     ),
     DeliosInverterAttribute(
@@ -355,6 +359,7 @@ SETTINGS: list[DeliosEntityType] = [
         state_class=SensorStateClass.TOTAL_INCREASING,
         device_class=SensorDeviceClass.ENERGY,
         unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        suggested_display_precision=2,
         value=lambda data: data["totalizer"].self_consumed,
     ),
 ]

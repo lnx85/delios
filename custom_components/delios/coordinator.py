@@ -93,6 +93,7 @@ class DeliosSensor(CoordinatorEntity, SensorEntity):
             state_class=attribute.state_class,
             device_class=attribute.device_class,
             native_unit_of_measurement=attribute.unit_of_measurement,
+            suggested_display_precision=attribute.suggested_display_precision,
         )
         self._attr_unique_id = f"{inverter.unique_id}-{attribute.key}"
         self._attr_device_info = DeviceInfo(
