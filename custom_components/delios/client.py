@@ -175,7 +175,7 @@ class TotalizerData:
 
     def __init__(self, data: dict) -> None:
         """Initialize totalizer data from JSON."""
-        self.produced = float(data["totalizers"]["TotalEnergyPV"])
+        self.photovoltaic = float(data["totalizers"]["TotalEnergyPV"])
         self.buyed = float(data["totalizers"]["TotalEnergyBuyed"])
         self.injected = float(data["totalizers"]["TotalEnergyInjected"])
         self.self_consumed = float(data["totalizers"]["TotalEnergySelfConsumed"])
