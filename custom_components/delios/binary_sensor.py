@@ -25,9 +25,9 @@ async def async_setup_entry(
     """Add binary sensors for passed config_entry in HA."""
     inverter = inverter_from_data(config_entry.data)
     hass.data.setdefault(DOMAIN, {})
-    if not inverter.unique_id in hass.data[DOMAIN]:
+    if inverter.unique_id not in hass.data[DOMAIN]:
         hass.data[DOMAIN][inverter.unique_id] = {}
-    if not BINARY_SENSOR_DOMAIN in hass.data[DOMAIN][inverter.unique_id]:
+    if BINARY_SENSOR_DOMAIN not in hass.data[DOMAIN][inverter.unique_id]:
         hass.data[DOMAIN][inverter.unique_id][BINARY_SENSOR_DOMAIN] = {}
     sensors_coordinator = DeliosSensorsCoordinator(hass, inverter)
     await sensors_coordinator.setup()
