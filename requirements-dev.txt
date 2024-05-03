@@ -1,6 +1,6 @@
-black==22.1.0
+black
 isort
-pytest-homeassistant-custom-component~=0.13.54
+pytest-homeassistant-custom-component==0.13.115
 pytest
 pytest-asyncio
 pytest-cov
