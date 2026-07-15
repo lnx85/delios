@@ -3,6 +3,7 @@
 __pycache__/
 .pytest_cache/
 /config/
+/dist/
 *.zip
 /.coverage
 /coverage.xml

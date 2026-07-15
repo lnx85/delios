@@ -12,7 +12,6 @@ from .client import (
     AlarmsData,
     StatusData,
     FirmwareData,
-    TotalizerData,
     SensorsData,
     ParametersData,
 )
@@ -53,6 +52,7 @@ class DeliosInverterAttribute:
     suggested_display_precision: Optional[int] = None
     value: Callable[[Any], Any] = lambda v: v
     attributes: dict[str, Callable[[Any], Any]] = {}
+    integration: bool = False
 
 
 class HelperFilterRangeType(Enum):
@@ -79,9 +79,76 @@ SENSORS: list[DeliosInverterAttribute] = [
         name="Battery Power",
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.POWER,
-        unit_of_measurement=UnitOfPower.WATT,
+        unit_of_measurement=UnitOfPower.KILO_WATT,
+        suggested_display_precision=2,
         value=lambda data: (
-            float(data["sensors"].get("PowerBatt")) * 1000
+            float(data["sensors"].get("PowerBatt"))
+            if isinstance(data, dict)
+            and "sensors" in data
+            and isinstance(data["sensors"], SensorsData)
+            else None
+        ),
+    ),
+    DeliosInverterAttribute(
+        type=DeliosEntityType.SENSOR,
+        key="battery_charge_power",
+        name="Battery Charge Power",
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.POWER,
+        unit_of_measurement=UnitOfPower.KILO_WATT,
+        suggested_display_precision=2,
+        value=lambda data: (
+            max(0.0, -float(data["sensors"].get("PowerBatt")))
+            if isinstance(data, dict)
+            and "sensors" in data
+            and isinstance(data["sensors"], SensorsData)
+            else None
+        ),
+    ),
+    DeliosInverterAttribute(
+        type=DeliosEntityType.SENSOR,
+        key="battery_discharge_power",
+        name="Battery Discharge Power",
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.POWER,
+        unit_of_measurement=UnitOfPower.KILO_WATT,
+        suggested_display_precision=2,
+        value=lambda data: (
+            max(0.0, float(data["sensors"].get("PowerBatt")))
+            if isinstance(data, dict)
+            and "sensors" in data
+            and isinstance(data["sensors"], SensorsData)
+            else None
+        ),
+    ),
+    DeliosInverterAttribute(
+        type=DeliosEntityType.SENSOR,
+        key="battery_charge_energy_total",
+        name="Battery Charge Energy Total",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        device_class=SensorDeviceClass.ENERGY,
+        unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        suggested_display_precision=2,
+        integration=True,
+        value=lambda data: (
+            max(0.0, -float(data["sensors"].get("PowerBatt")) * 1000)
+            if isinstance(data, dict)
+            and "sensors" in data
+            and isinstance(data["sensors"], SensorsData)
+            else None
+        ),
+    ),
+    DeliosInverterAttribute(
+        type=DeliosEntityType.SENSOR,
+        key="battery_discharge_energy_total",
+        name="Battery Discharge Energy Total",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        device_class=SensorDeviceClass.ENERGY,
+        unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        suggested_display_precision=2,
+        integration=True,
+        value=lambda data: (
+            max(0.0, float(data["sensors"].get("PowerBatt")) * 1000)
             if isinstance(data, dict)
             and "sensors" in data
             and isinstance(data["sensors"], SensorsData)
@@ -94,9 +161,10 @@ SENSORS: list[DeliosInverterAttribute] = [
         name="Grid Power",
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.POWER,
-        unit_of_measurement=UnitOfPower.WATT,
+        unit_of_measurement=UnitOfPower.KILO_WATT,
+        suggested_display_precision=2,
         value=lambda data: (
-            float(data["sensors"].get("PowerGrid")) * 1000
+            float(data["sensors"].get("PowerGrid"))
             if isinstance(data, dict)
             and "sensors" in data
             and isinstance(data["sensors"], SensorsData)
@@ -109,9 +177,10 @@ SENSORS: list[DeliosInverterAttribute] = [
         name="Photovoltaic Power",
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.POWER,
-        unit_of_measurement=UnitOfPower.WATT,
+        unit_of_measurement=UnitOfPower.KILO_WATT,
+        suggested_display_precision=2,
         value=lambda data: (
-            float(data["sensors"].get("PowerPV")) * 1000
+            float(data["sensors"].get("PowerPV"))
             if isinstance(data, dict)
             and "sensors" in data
             and isinstance(data["sensors"], SensorsData)
@@ -124,9 +193,152 @@ SENSORS: list[DeliosInverterAttribute] = [
         name="House Power",
         state_class=SensorStateClass.MEASUREMENT,
         device_class=SensorDeviceClass.POWER,
-        unit_of_measurement=UnitOfPower.WATT,
+        unit_of_measurement=UnitOfPower.KILO_WATT,
+        suggested_display_precision=2,
         value=lambda data: (
-            float(data["sensors"].get("PowerHouse")) * 1000
+            float(data["sensors"].get("PowerHouse"))
+            if isinstance(data, dict)
+            and "sensors" in data
+            and isinstance(data["sensors"], SensorsData)
+            else None
+        ),
+    ),
+    # Instantaneous power flows mirroring the energy totals (buyed / injected /
+    # self-consumed). The Delios API only exposes a single signed grid power
+    # (PowerGrid), so these split it by direction and derive self-consumption.
+    # Sign convention (verified on an IBRIDO DLS unit against live data):
+    #   PowerGrid > 0 = power drawn from the grid (buyed / import)
+    #   PowerGrid < 0 = power fed into the grid (injected / export)
+    # Self-consumed = the share of PV production not exported to the grid.
+    DeliosInverterAttribute(
+        type=DeliosEntityType.SENSOR,
+        key="buyed_power",
+        name="Buyed Power",
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.POWER,
+        unit_of_measurement=UnitOfPower.KILO_WATT,
+        suggested_display_precision=2,
+        value=lambda data: (
+            max(0.0, float(data["sensors"].get("PowerGrid")))
+            if isinstance(data, dict)
+            and "sensors" in data
+            and isinstance(data["sensors"], SensorsData)
+            else None
+        ),
+    ),
+    DeliosInverterAttribute(
+        type=DeliosEntityType.SENSOR,
+        key="injected_power",
+        name="Injected Power",
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.POWER,
+        unit_of_measurement=UnitOfPower.KILO_WATT,
+        suggested_display_precision=2,
+        value=lambda data: (
+            max(0.0, -float(data["sensors"].get("PowerGrid")))
+            if isinstance(data, dict)
+            and "sensors" in data
+            and isinstance(data["sensors"], SensorsData)
+            else None
+        ),
+    ),
+    DeliosInverterAttribute(
+        type=DeliosEntityType.SENSOR,
+        key="self_consumed_power",
+        name="Self Consumed Power",
+        state_class=SensorStateClass.MEASUREMENT,
+        device_class=SensorDeviceClass.POWER,
+        unit_of_measurement=UnitOfPower.KILO_WATT,
+        suggested_display_precision=2,
+        value=lambda data: (
+            max(
+                0.0,
+                float(data["sensors"].get("PowerPV"))
+                - max(0.0, -float(data["sensors"].get("PowerGrid"))),
+            )
+            if isinstance(data, dict)
+            and "sensors" in data
+            and isinstance(data["sensors"], SensorsData)
+            else None
+        ),
+    ),
+    # Real-time energy totals, integrated from the instantaneous power flows above.
+    # These REPLACE the former TotalizerData-based *_energy_total sensors: the Delios
+    # /info/totalizer endpoint only commits its cumulative counters once per day at the
+    # inverter's local midnight, and the inverter clock stays on standard time (it does
+    # not follow DST). On the HA Energy dashboard a whole day's energy therefore landed
+    # in a single 01:00 bucket (00:00 in winter) and was attributed to the wrong day.
+    # Integrating the live power instead yields correctly time-bucketed, DST-correct
+    # energy. The running total is a RestoreSensor, so it persists across restarts.
+    DeliosInverterAttribute(
+        type=DeliosEntityType.SENSOR,
+        key="photovoltaic_energy_total",
+        name="Photovoltaic Energy Total",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        device_class=SensorDeviceClass.ENERGY,
+        unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        suggested_display_precision=2,
+        integration=True,
+        value=lambda data: (
+            float(data["sensors"].get("PowerPV")) * 1000
+            if isinstance(data, dict)
+            and "sensors" in data
+            and isinstance(data["sensors"], SensorsData)
+            else None
+        ),
+    ),
+    DeliosInverterAttribute(
+        type=DeliosEntityType.SENSOR,
+        key="buyed_energy_total",
+        name="Buyed Energy Total",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        device_class=SensorDeviceClass.ENERGY,
+        unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        suggested_display_precision=2,
+        integration=True,
+        value=lambda data: (
+            max(0.0, float(data["sensors"].get("PowerGrid")) * 1000)
+            if isinstance(data, dict)
+            and "sensors" in data
+            and isinstance(data["sensors"], SensorsData)
+            else None
+        ),
+    ),
+    DeliosInverterAttribute(
+        type=DeliosEntityType.SENSOR,
+        key="injected_energy_total",
+        name="Injected Energy Total",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        device_class=SensorDeviceClass.ENERGY,
+        unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        suggested_display_precision=2,
+        integration=True,
+        value=lambda data: (
+            max(0.0, -float(data["sensors"].get("PowerGrid")) * 1000)
+            if isinstance(data, dict)
+            and "sensors" in data
+            and isinstance(data["sensors"], SensorsData)
+            else None
+        ),
+    ),
+    DeliosInverterAttribute(
+        type=DeliosEntityType.SENSOR,
+        key="self_consumed_energy_total",
+        name="Self Consumed Energy Total",
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        device_class=SensorDeviceClass.ENERGY,
+        unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        suggested_display_precision=2,
+        integration=True,
+        value=lambda data: (
+            max(
+                0.0,
+                (
+                    float(data["sensors"].get("PowerPV"))
+                    - max(0.0, -float(data["sensors"].get("PowerGrid")))
+                )
+                * 1000,
+            )
             if isinstance(data, dict)
             and "sensors" in data
             and isinstance(data["sensors"], SensorsData)
@@ -548,70 +760,6 @@ SETTINGS: list[DeliosEntityType] = [
             if isinstance(data, dict)
             and "firmware" in data
             and isinstance(data["firmware"], FirmwareData)
-            else None
-        ),
-    ),
-    DeliosInverterAttribute(
-        type=DeliosEntityType.SENSOR,
-        key="photovoltaic_energy_total",
-        name="Photovoltaic Energy Total",
-        state_class=SensorStateClass.TOTAL_INCREASING,
-        device_class=SensorDeviceClass.ENERGY,
-        unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        suggested_display_precision=2,
-        value=lambda data: (
-            data["totalizer"].photovoltaic
-            if isinstance(data, dict)
-            and "totalizer" in data
-            and isinstance(data["totalizer"], TotalizerData)
-            else None
-        ),
-    ),
-    DeliosInverterAttribute(
-        type=DeliosEntityType.SENSOR,
-        key="buyed_energy_total",
-        name="Buyed Energy Total",
-        state_class=SensorStateClass.TOTAL_INCREASING,
-        device_class=SensorDeviceClass.ENERGY,
-        unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        suggested_display_precision=2,
-        value=lambda data: (
-            data["totalizer"].buyed
-            if isinstance(data, dict)
-            and "totalizer" in data
-            and isinstance(data["totalizer"], TotalizerData)
-            else None
-        ),
-    ),
-    DeliosInverterAttribute(
-        type=DeliosEntityType.SENSOR,
-        key="injected_energy_total",
-        name="Injected Energy Total",
-        state_class=SensorStateClass.TOTAL_INCREASING,
-        device_class=SensorDeviceClass.ENERGY,
-        unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        suggested_display_precision=2,
-        value=lambda data: (
-            data["totalizer"].injected
-            if isinstance(data, dict)
-            and "totalizer" in data
-            and isinstance(data["totalizer"], TotalizerData)
-            else None
-        ),
-    ),
-    DeliosInverterAttribute(
-        type=DeliosEntityType.SENSOR,
-        key="self_consumed_energy_total",
-        name="Self Consumed Energy Total",
-        state_class=SensorStateClass.TOTAL_INCREASING,
-        device_class=SensorDeviceClass.ENERGY,
-        unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        suggested_display_precision=2,
-        value=lambda data: (
-            data["totalizer"].self_consumed
-            if isinstance(data, dict)
-            and "totalizer" in data
-            and isinstance(data["totalizer"], TotalizerData)
             else None
         ),
     ),

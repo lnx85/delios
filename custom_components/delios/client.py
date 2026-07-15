@@ -90,12 +90,6 @@ class DeliosClient:
         if data is not None:
             return ParametersData(data)
 
-    async def totalizer(self) -> TotalizerData | None:
-        """Request totalizer data to Delios Web Server."""
-        data = await self.__request("info/totalizer")
-        if data is not None:
-            return TotalizerData(data)
-
     async def firmware(self) -> FirmwareData | None:
         """Request firmware data to Delios Web Server."""
         data = await self.__request("info/firmware")
@@ -140,7 +134,7 @@ class SensorsData:
     def __init__(self, data: dict) -> None:
         """Initialize sensors data from JSON."""
         self._data = {}
-        if "variables" in data:
+        if "variables" in data and isinstance(data["variables"], list):
             for variable in data["variables"]:
                 self._data[variable["ctrl_name"]] = variable["value"]
 
@@ -167,7 +161,7 @@ class ParametersData:
     def __init__(self, data: dict) -> None:
         """Initialize paramters data from JSON."""
         self._data = {}
-        if "variables" in data:
+        if "variables" in data and isinstance(data["variables"], list):
             for variable in data["variables"]:
                 self._data[variable["ctrl_name"]] = variable["value"]
 
@@ -176,17 +170,6 @@ class ParametersData:
         if name in self._data:
             return float(self._data[name])
         raise InvalidAttribute(name)
-
-
-class TotalizerData:
-    """Totalizer data from Delios Web Server."""
-
-    def __init__(self, data: dict) -> None:
-        """Initialize totalizer data from JSON."""
-        self.photovoltaic = float(data["totalizers"]["TotalEnergyPV"])
-        self.buyed = float(data["totalizers"]["TotalEnergyBuyed"])
-        self.injected = float(data["totalizers"]["TotalEnergyInjected"])
-        self.self_consumed = float(data["totalizers"]["TotalEnergySelfConsumed"])
 
 
 class FirmwareData:

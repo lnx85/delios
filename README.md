@@ -88,6 +88,58 @@ At the end of this step, an attempt is made to connect to the device and see if
 it returns any data. When succesfully connected, the device will show up in your
 Home Assistant installation.
 
+## Energy dashboard
+
+The integration exposes dedicated battery charge/discharge sensors so the battery
+can be tracked in the Home Assistant Energy dashboard:
+
+- **Battery Charge Power** / **Battery Discharge Power** _(kW)_: the instantaneous
+  power flowing into and out of the battery, split by direction.
+- **Battery Charge Energy Total** / **Battery Discharge Energy Total** _(kWh)_:
+  cumulative energy stored into and drawn from the battery. The Delios API only
+  reports instantaneous battery power, so these totals are computed by integrating
+  the power over time and are restored across restarts.
+
+To configure the battery in the Energy dashboard, go to Settings / Dashboards /
+Energy, add a battery system, and select _Battery Charge Energy Total_ as the
+energy going into the battery and _Battery Discharge Energy Total_ as the energy
+coming out of the battery.
+
+### Energy totals (photovoltaic / grid / self-consumption)
+
+The **Photovoltaic / Buyed / Injected / Self Consumed Energy Total** sensors
+_(kWh, `total_increasing`)_ are computed by **integrating the instantaneous power
+over time** (trapezoidal rule, restored across restarts) — the same technique used
+for the battery energy totals.
+
+> **Why not the inverter's own totals?** The Delios `/info/totalizer` endpoint only
+> commits its cumulative counters **once per day, at the inverter's local
+> midnight**, and the inverter clock stays on standard time (it does not follow
+> DST). Fed into the Energy dashboard, a whole day's energy therefore appeared in a
+> single **01:00 bucket** (00:00 in winter) and was attributed to the wrong day.
+> Integrating the live power instead produces correctly time-bucketed, DST-correct
+> energy. These integrated sensors replace the former totalizer-based ones (same
+> entity ids) and start accumulating from 0 on upgrade.
+
+Use _Photovoltaic Energy Total_ as solar production, _Buyed Energy Total_ as grid
+consumption and _Injected Energy Total_ as return to grid in the Energy dashboard.
+
+### Instantaneous power flows
+
+The integration also exposes the matching **instantaneous power** _(kW)_ so each
+flow can be tracked live on a normal dashboard (power-flow cards, gauges, history):
+
+- **Photovoltaic Power** — instantaneous PV production (`photovoltaic_power`).
+- **Buyed Power** / **Injected Power** — power drawn from / fed into the grid,
+  split by direction from the single signed grid power reported by the inverter.
+- **Self Consumed Power** — the share of PV production consumed on site rather
+  than exported.
+
+> Sign convention (verified on an IBRIDO DLS unit): `PowerGrid > 0` is power
+> drawn from the grid (buyed), `PowerGrid < 0` is power injected into the grid.
+> If the readings are swapped on your inverter, flip the sign in
+> `custom_components/delios/entity.py`.
+
 ## Next steps
 
 1. This component is mostly unit-tested thanks to the upstream project, but there are a few more to complete.

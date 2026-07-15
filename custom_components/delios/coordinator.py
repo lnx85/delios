@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.components.binary_sensor import DOMAIN as BINARY_SENSOR_DOMAIN
@@ -12,7 +12,11 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntityDescription,
 )
 from homeassistant.components.sensor import DOMAIN as SENSOR_DOMAIN
-from homeassistant.components.sensor import SensorEntity, SensorEntityDescription
+from homeassistant.components.sensor import (
+    RestoreSensor,
+    SensorEntity,
+    SensorEntityDescription,
+)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -20,9 +24,10 @@ from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
 )
+from homeassistant.util import dt as dt_util
 from homeassistant.util import slugify
 
-from .client import DeliosClient, UnauthorizedClient
+from .client import DeliosClient, InvalidAttribute, UnauthorizedClient
 from .const import DOMAIN, SYSTEM_UPDATE_INTERVAL
 from .entity import SENSORS, SETTINGS, DeliosEntityType, DeliosInverterAttribute
 from .inverter import DeliosInverter
@@ -31,6 +36,12 @@ _LOGGER = logging.getLogger(__name__)
 
 ENTITY_ID_SENSOR_FORMAT = SENSOR_DOMAIN + ".{}_{}"
 ENTITY_ID_BINARY_SENSOR_FORMAT = BINARY_SENSOR_DOMAIN + ".{}_{}"
+
+# Errors raised while evaluating an attribute value when the underlying inverter
+# data is missing or not yet available (e.g. an endpoint returned no variables for
+# this hardware). Such an attribute is treated as "value unavailable" rather than
+# being allowed to crash entity setup or a coordinator update.
+VALUE_UNAVAILABLE_ERRORS = (KeyError, TypeError, ValueError, InvalidAttribute)
 
 
 class DeliosBinarySensor(CoordinatorEntity, BinarySensorEntity):
@@ -59,12 +70,17 @@ class DeliosBinarySensor(CoordinatorEntity, BinarySensorEntity):
             manufacturer="Delios",
             model=inverter.model,
         )
+        self._attr_is_on = None
+        self._internal_attributes = {}
         if self.coordinator.data:
-            self._attr_is_on = self._attribute.value(self.coordinator.data)
-            self._internal_attributes = {
-                attribute: value(self.coordinator.data)
-                for attribute, value in self._attribute.attributes.items()
-            }
+            try:
+                self._attr_is_on = self._attribute.value(self.coordinator.data)
+                self._internal_attributes = {
+                    attribute: value(self.coordinator.data)
+                    for attribute, value in self._attribute.attributes.items()
+                }
+            except VALUE_UNAVAILABLE_ERRORS:
+                pass
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
@@ -83,7 +99,7 @@ class DeliosBinarySensor(CoordinatorEntity, BinarySensorEntity):
                 for attribute, value in self._attribute.attributes.items()
             }
             self.async_write_ha_state()
-        except KeyError:
+        except VALUE_UNAVAILABLE_ERRORS:
             pass
 
 
@@ -117,12 +133,16 @@ class DeliosSensor(CoordinatorEntity, SensorEntity):
             manufacturer="Delios",
             model=inverter.model,
         )
+        self._internal_attributes = {}
         if self.coordinator.data:
-            self._internal_value = self._attribute.value(self.coordinator.data)
-            self._internal_attributes = {
-                attribute: value(self.coordinator.data)
-                for attribute, value in self._attribute.attributes.items()
-            }
+            try:
+                self._internal_value = self._attribute.value(self.coordinator.data)
+                self._internal_attributes = {
+                    attribute: value(self.coordinator.data)
+                    for attribute, value in self._attribute.attributes.items()
+                }
+            except VALUE_UNAVAILABLE_ERRORS:
+                pass
 
     @property
     def native_value(self) -> str | int | None:
@@ -147,8 +167,100 @@ class DeliosSensor(CoordinatorEntity, SensorEntity):
                 for attribute, value in self._attribute.attributes.items()
             }
             self.async_write_ha_state()
-        except KeyError:
+        except VALUE_UNAVAILABLE_ERRORS:
             pass
+
+
+class DeliosIntegrationSensor(CoordinatorEntity, RestoreSensor):
+    """Delios energy sensor computed by integrating an instantaneous power value over time.
+
+    The Delios API only exposes the instantaneous battery power, not cumulative
+    charge/discharge energy. This sensor integrates the power (in watts) returned
+    by the attribute over time to produce a kWh total that can be used in the Home
+    Assistant Energy dashboard. The running total is restored across restarts.
+    """
+
+    def __init__(
+        self, coordinator: DeliosCoordinator, attribute: DeliosInverterAttribute
+    ) -> None:
+        """Initialize integration sensor."""
+
+        super().__init__(coordinator, context=attribute)
+        self._attribute = attribute
+        self._state: float = 0.0
+        self._last_power: float | None = None
+        self._last_update: datetime | None = None
+        inverter = self.coordinator.inverter
+        self.entity_id = ENTITY_ID_SENSOR_FORMAT.format(
+            slugify(inverter.name), attribute.key
+        )
+        self.entity_description = SensorEntityDescription(
+            key=attribute.key,
+            name=attribute.name,
+            state_class=attribute.state_class,
+            device_class=attribute.device_class,
+            native_unit_of_measurement=attribute.unit_of_measurement,
+            suggested_display_precision=attribute.suggested_display_precision,
+        )
+        self._attr_unique_id = f"{inverter.unique_id}-{attribute.key}"
+        self._attr_device_info = DeviceInfo(
+            name=inverter.name,
+            identifiers={(DOMAIN, inverter.unique_id)},
+            manufacturer="Delios",
+            model=inverter.model,
+        )
+
+    @property
+    def native_value(self) -> float:
+        """Return the accumulated energy."""
+
+        return self._state
+
+    async def async_added_to_hass(self) -> None:
+        """Restore the last accumulated value and seed the integration baseline."""
+
+        await super().async_added_to_hass()
+        last_data = await self.async_get_last_sensor_data()
+        if last_data is not None and last_data.native_value is not None:
+            try:
+                self._state = float(last_data.native_value)
+            except (TypeError, ValueError):
+                self._state = 0.0
+        self._integrate()
+
+    def _current_power(self) -> float | None:
+        """Return the instantaneous power (in watts) to integrate."""
+
+        try:
+            return self._attribute.value(self.coordinator.data)
+        except VALUE_UNAVAILABLE_ERRORS:
+            return None
+
+    def _integrate(self) -> None:
+        """Accumulate energy using the trapezoidal rule between two power readings."""
+
+        now = dt_util.utcnow()
+        power = self._current_power()
+        if (
+            power is not None
+            and self._last_power is not None
+            and self._last_update is not None
+        ):
+            elapsed = (now - self._last_update).total_seconds()
+            if elapsed > 0:
+                average_power = (power + self._last_power) / 2
+                # W * s -> Wh (/3600) -> kWh (/1000)
+                self._state += average_power * elapsed / 3600 / 1000
+        if power is not None:
+            self._last_power = power
+            self._last_update = now
+
+    @callback
+    def _handle_coordinator_update(self) -> None:
+        """Handle updated data from the coordinator."""
+
+        self._integrate()
+        self.async_write_ha_state()
 
 
 class DeliosCoordinator(DataUpdateCoordinator):
@@ -191,9 +303,14 @@ class DeliosCoordinator(DataUpdateCoordinator):
             for entity in self.entities:
                 if entity.type == attribute_type:
                     if entity.type == DeliosEntityType.SENSOR:
+                        sensor = (
+                            DeliosIntegrationSensor(self, entity)
+                            if entity.integration
+                            else DeliosSensor(self, entity)
+                        )
                         self.hass.data[DOMAIN][self._inverter.unique_id][SENSOR_DOMAIN][
                             entity.key
-                        ] = DeliosSensor(self, entity)
+                        ] = sensor
                         entities.append(
                             self.hass.data[DOMAIN][self._inverter.unique_id][
                                 SENSOR_DOMAIN
@@ -262,7 +379,6 @@ class DeliosSystemCoordinator(DeliosCoordinator):
         """Fetch data from API endpoint."""
         data: dict[str, Any] = {
             "status": None,
-            "totalizer": None,
             "alarms": None,
         }
         # status
@@ -270,11 +386,6 @@ class DeliosSystemCoordinator(DeliosCoordinator):
             data["status"] = await self._client.status()
         except UnauthorizedClient:
             _LOGGER.error("Unable to retreive status data")
-        # totalizer
-        try:
-            data["totalizer"] = await self._client.totalizer()
-        except UnauthorizedClient:
-            _LOGGER.error("Unable to retreive totalizer data")
         # firmware
         try:
             data["firmware"] = await self._client.firmware()
